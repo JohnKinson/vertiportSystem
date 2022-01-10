@@ -9,7 +9,6 @@ drone_parameters= {
     "dt":0.1
 }
 
-
 class vertiport():
 
     def __init__(self, params):
@@ -36,7 +35,7 @@ class vertiport():
         #assert self.droneN <=6, f"Starting drones for vertiport, {self.droneN} is greater than the maximum number of 6"
     
     def generateEnvironment(self):
-        if self.landingpad_location_generation == "Experimental":
+        if self.landingpad_location_generation == "Linear":
             drone_size = np.array(drone_parameters["dimentions"])
             drone_size = drone_size/100 #convert to m from cm
             droneX= drone_size[0]
@@ -97,11 +96,46 @@ class vertiport():
                     self.landingPads = np.multiply(self.landingPads,100)# convert to cm
                     print("landing pads",self.landingPads)   
 
-        
-        
+        elif self.landingpad_location_generation == "Circular":
+
+            x_max = (self.vertiportDimentions[0] )*100
+            y_max = (self.vertiportDimentions[1])*100
+            center= [x_max/2, y_max/2, 0]
+            droneMaxSize= max(drone_parameters["dimentions"])
+            landingpad_x_max = x_max - droneMaxSize/2
+            landingpad_y_max = y_max - droneMaxSize/2
+            landingpad_x_min = droneMaxSize/2
+            landingpad_y_min = droneMaxSize/2
+            
+
+            capacity_array = np.arange(1, self.drone_max_capacity+1, 1)
+            
+            angle = 2*np.pi/self.drone_max_capacity
+
+            for i in capacity_array:
+                landingpad= [(((landingpad_x_max-landingpad_x_min)/2)*np.cos(angle*i))+center[0], (((landingpad_y_max-landingpad_y_min)/2)*np.sin(angle*i))+center[1], 0]
+
+                self.landingPads.append(landingpad)
+
+            
+        elif self.landingpad_location_generation == "Triangular":
+            x_max = (self.vertiportDimentions[0] )*100
+            y_max = (self.vertiportDimentions[1])*100
+            
+
+
         elif self.landingpad_location_generation == "Standard":
             self.landingPads = [[50, 300, 0],[150, 300, 0],[50, 200, 0],[150, 200, 0],[50, 100, 0],[150, 100, 0]]
             
+        elif self.landingpad_location_generation == "LinearDefault":
+            self.landingPads = [[50, 350, 0],[150, 350, 0],[50, 200, 0],[150, 200, 0],[50, 50, 0],[150, 50, 0]]
+
+        elif self.landingpad_location_generation == "CircularDefault":
+            self.landingPads =[[100, 325, 0],[30, 250, 0],[170, 250, 0],[30, 150, 0],[170, 150, 0],[100, 75, 0]]
+
+        elif self.landingpad_location_generation == "TriangularDefault":
+            self.landingPads =[[50, 350, 0],[150, 350, 0],[100, 250, 0],[150, 150, 0],[50, 150, 0],[100, 50, 0]]
+
         self.UAVs= [] #np.zeros(len(self.landingPads))
         
         droneN_array= np.arange(0, self.droneN, 1)
@@ -115,7 +149,6 @@ class vertiport():
             self.UAVs.append([])
             a+1
         
-
 
     def generateWaypoints(self):
         if self.waypoint_generation_method == "Experimental":
@@ -151,7 +184,6 @@ class vertiport():
 
 
 
-
         elif self.waypoint_generation_method == "Standard":
             self.waypoints_in = [
                             [0, 300, 400],[0, 100, 400], 
@@ -170,17 +202,174 @@ class vertiport():
                             [200, 100, 350],[200, 300, 350],
                             [200, 300, 400],[200, 100, 400]
                            ]
-            return self.waypoints_in, self.waypoints_out
+
+        elif self.waypoint_generation_method == "2D Horizontal":
+            
+            levels = 8 # must be even
+            levels = round(levels/2)
+            level_separation = 50 #in cm
+            levelArray = np.arange(0, levels, 1)
+            droneMaxSize= max(drone_parameters["dimentions"])/100
+            x_max = (self.vertiportDimentions[0] - self.drone_separation/100 - droneMaxSize/2)*100
+            y_max = (self.vertiportDimentions[1] - self.drone_separation/100 - droneMaxSize/2)*100
+            x_min = (self.drone_separation/100 + droneMaxSize/2)*100
+            y_min = (self.drone_separation/100 + droneMaxSize/2)*100
+            minimum_height = 50
+            
+            self.waypoints_in = []
+            first_waypoint= waypoint1 = [x_min,y_max,level_separation*(levels*2)+minimum_height]
+            self.waypoints_in.append(first_waypoint)
+
+            for i in levelArray:
+                
+
+                waypoint1 = [x_min,y_min,level_separation*(levels*2-2*i)+minimum_height]
+                waypoint2 = [x_min,y_min,level_separation*(levels*2-1-2*i)+minimum_height]
+                waypoint3 = [x_min,y_max,level_separation*(levels*2-1-2*i)+minimum_height]
+                waypoint4 = [x_min,y_max,level_separation*(levels*2-2-2*i)+minimum_height]
+
+                self.waypoints_in.append(waypoint1)
+                self.waypoints_in.append(waypoint2)
+                self.waypoints_in.append(waypoint3)
+                self.waypoints_in.append(waypoint4)
+            
+            
+            
+
+
+
+
+            """self.waypoints_in = [
+                            [50, 350, 350],[50, 50, 350], 
+                            [50, 50, 300],[50, 350, 300],
+                            [50, 350, 250],[50, 50, 250],
+                            [50, 50, 200],[50, 350, 200],
+                            [50, 350, 150],[50, 50, 150],
+                            [50, 50, 100],[50, 350, 100]
+                           ]"""
+
+            self.waypoints_out = [
+                            [150, 350, 100],[150, 50, 100], 
+                            [150, 50, 150],[150, 350, 150],
+                            [150, 350, 200],[150, 50, 200],
+                            [150, 50, 250],[150, 350, 250],
+                            [150, 350, 300],[150, 50, 300],
+                            [150, 50, 350],[150, 350, 350],
+                            [150, 350, 400],[150, 50, 400],
+                           ]
+
+        elif self.waypoint_generation_method == "2D Orbits":
+            
+        
+            droneMaxSize= max(drone_parameters["dimentions"])/100
+            orbit_separation = 75#(droneMaxSize/2 + self.drone_separation/100)*100
+        
+            
+            x_max = (self.vertiportDimentions[0] )*100
+            y_max = (self.vertiportDimentions[1])*100
+            x_min = 0
+            y_min = 0
+            number_of_orbits = 3 # can be changed
+            orbit_array= np.arange(1, number_of_orbits+1, 1)
+            height= 300 
+            center_point = [x_max/2, y_max/2, height]
+
+            orbit_start = [center_point[0]+ orbit_separation, center_point[1] , height]
+            self.waypoints_in.append(orbit_start)
+
+            for i in orbit_array:
+                waypoint1 = [center_point[0]+ orbit_separation*i,center_point[1]- orbit_separation*i, height]
+                waypoint2 = [center_point[0]- orbit_separation*i,center_point[1]- orbit_separation*i, height]
+                waypoint3 = [center_point[0]- orbit_separation*i,center_point[1]+ orbit_separation*i, height]
+                waypoint4 = [center_point[0]+ orbit_separation*i+orbit_separation,center_point[1]+ orbit_separation*i, height]
+
+                self.waypoints_in.append(waypoint1)
+                self.waypoints_in.append(waypoint2)
+                self.waypoints_in.append(waypoint3)
+                self.waypoints_in.append(waypoint4)
+
+            self.waypoints_in= list(reversed(self.waypoints_in))
+            
+
+            """self.waypoints_in = [
+                            [-200, 500, 300], [400, 500, 300], 
+                            [400, -100, 300],[-200, -100, 300],
+                            [-200, 400, 300],[300, 400, 300],
+                            [300, 0, 300],[-100, 0, 300],
+                            [-100, 300, 300],[200, 300, 300],
+                            [200, 100, 300],[0, 100, 300],
+                            [0,200,300], [0,200,100],
+                           ]"""
+
+            self.waypoints_out = [
+                            [100, 200, 150],[100, 200, 400],
+                           ]
+
+        elif self.waypoint_generation_method == "3D Orbits":
+            
+            distance_from_perimeter = 10 #cm
+            
+            x_max = (self.vertiportDimentions[0] +distance_from_perimeter/100)*100
+            y_max = (self.vertiportDimentions[1] +distance_from_perimeter/100)*100
+            x_min = 0 - distance_from_perimeter
+            y_min = 0 - distance_from_perimeter
+
+            droneMaxSize= max(drone_parameters["dimentions"])/100
+            level_separation = 75
+        
+            levels = 4 
+            levelArray = np.arange(0, levels, 1)
+            droneMaxSize= max(drone_parameters["dimentions"])/100
+            
+            minimum_height = 50
+            
+            self.waypoints_in = []
+            first_waypoint= waypoint1 = [x_min,y_max,level_separation*(levels)+minimum_height]
+            self.waypoints_in.append(first_waypoint)
+
+            for i in levelArray:
+                
+
+                waypoint1 = [x_min,y_min,level_separation*(levels-i)+minimum_height]
+                waypoint2 = [x_max,y_min,level_separation*(levels-i)+minimum_height]
+                waypoint3 = [x_max, y_max,level_separation*(levels-i)+minimum_height]
+                waypoint4 =[x_min, y_max,level_separation*(levels-1-i)+minimum_height]
+                #waypoint5 = [x_min,y_max,level_separation*(levels-1-i)+minimum_height]
+                #waypoint6 = [x_min,y_max,level_separation*(levels-1-i)+minimum_height]
+
+                self.waypoints_in.append(waypoint1)
+                self.waypoints_in.append(waypoint2)
+                self.waypoints_in.append(waypoint3)
+                self.waypoints_in.append(waypoint4)
+                #self.waypoints_in.append(waypoint5)
+                #self.waypoints_in.append(waypoint6)
+            
+            print(self.waypoints_in)
+            
+
+            """self.waypoints_in = [
+                            [-200, 500, 300], [400, 500, 300], 
+                            [400, -100, 300],[-200, -100, 300],
+                            [-200, 500, 200], [400, 500, 200], 
+                            [400, -100, 200],[-200, -100, 200],
+                            [-200, 500, 100], [400, 500, 100], 
+                            [400, -100, 100],[-200, -100, 100],
+                            [0,200,100],
+                           ]"""
+
+            self.waypoints_out = [
+                            [100, 200, 150],[100, 200, 400],
+                           ]
+
+        return self.waypoints_in, self.waypoints_out
 
     def takeoff(self, data):
         if self.takeoff_in_progress == True:
             print("A takeoff is already in progress please wait")
-
             #STORE REQUEST HERE TO EXECUTE AFTER TAKEOFF IS COMPLETE
 
         elif self.landing_in_progess == True:
             print("A landing is in progress please wait")
-
             #STORE REQUEST HERE TO EXECUTE AFTER LANDING IS COMPLETE
 
         elif self.takeoff_in_progress == False and self.landing_in_progess == False:
@@ -227,8 +416,8 @@ class vertiport():
 
         print("waypoints out", self.waypoints_out)
 
-
-        pos, time = current_takeoff_drone.droneControl(self.waypoints_out)
+        pos, time = current_takeoff_drone.drone_control(self.waypoints_out)
+        return pos, time
 
         
 
@@ -237,13 +426,40 @@ class vertiport():
             print("There is no more capacity in the vertiport for any more drones")
 
         elif self.droneN<self.drone_max_capacity:
-            drone_current_location = data["location"]
+            drone_starting_location = data["location"]
             l = self.UAVs.index([])
             goal_landingPad = self.landingPads[l]#find the first empty landing pad
+            first_waypoint = [drone_starting_location[0], drone_starting_location[1], 350]
+            self.waypoints_in.insert(0, first_waypoint)
+            self.waypoints_in.append([goal_landingPad[0], goal_landingPad[1], goal_landingPad[2]+ 50])
+            self.waypoints_in.append(goal_landingPad)
 
-            print("goal landinpad",goal_landingPad)
+            unoccupied_array = []
+            unoccupied_index_array = []
 
-        print("waypoints in", self.waypoints_in)
+            for i in np.arange(0, len(self.UAVs), 1):
+                if self.UAVs[i]:
+                    unoccupied = False
+                    
+
+                else:
+                    unoccupied = True
+                    unoccupied_index = i
+                    unoccupied_index_array.append(unoccupied_index)
+                unoccupied_array.append(unoccupied)
+
+            UAV = drone(drone_starting_location,drone_parameters)
+
+            current_landing_drone = UAV
+
+            self.UAVs[unoccupied_index_array[0]] = current_landing_drone #add uav to array
+           
+            
+
+            print("waypoints",self.waypoints_in)
+
+        pos, time = current_landing_drone.drone_control(self.waypoints_in)
+        return pos, time
         
     
 
